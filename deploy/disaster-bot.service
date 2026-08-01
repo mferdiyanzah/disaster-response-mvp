@@ -4,10 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/disaster-response-mvp
-EnvironmentFile=/home/ubuntu/disaster-response-mvp/.env
-ExecStart=/home/ubuntu/disaster-response-mvp/venv/bin/python -m bot.main_production
+User=ferdiyanzah
+WorkingDirectory=/home/ferdiyanzah/Engineering/Projects/disaster-response-mvp
+EnvironmentFile=/home/ferdiyanzah/Engineering/Projects/disaster-response-mvp/.env
+ExecStart=/home/ferdiyanzah/Engineering/Projects/disaster-response-mvp/venv/bin/python -m bot.main_production
 Restart=always
 RestartSec=5
 

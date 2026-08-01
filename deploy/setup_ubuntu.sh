@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-PROJECT_DIR="/home/ubuntu/disaster-response-mvp"
+PROJECT_DIR="/home/ferdiyanzah/Engineering/Projects/disaster-response-mvp"
 
 echo "=== Disaster Response MVP - Ubuntu VPS Setup ==="
 

@@ -4,10 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/disaster-response-mvp
-EnvironmentFile=/home/ubuntu/disaster-response-mvp/.env
-ExecStart=/home/ubuntu/disaster-response-mvp/venv/bin/streamlit run dashboard/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true --browser.gatherUsageStats=false
+User=ferdiyanzah
+WorkingDirectory=/home/ferdiyanzah/Engineering/Projects/disaster-response-mvp
+EnvironmentFile=/home/ferdiyanzah/Engineering/Projects/disaster-response-mvp/.env
+ExecStart=/home/ferdiyanzah/Engineering/Projects/disaster-response-mvp/venv/bin/streamlit run dashboard/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true --browser.gatherUsageStats=false
 Restart=always
 RestartSec=5
 
