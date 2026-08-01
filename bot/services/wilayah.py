@@ -11,6 +11,7 @@ import logging
 import httpx
 
 from bot import config
+from bot.services import bmkg
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,14 @@ async def get_villages(district_id: str) -> list[dict]:
         resp = await client.get(f"{_DIRECT_BASE}/villages/{district_id}.json")
         resp.raise_for_status()
         return resp.json()
+
+
+async def resolve_adm4_for_bmkg(district_id: str) -> str | None:
+    """Resolve district ID ke kode adm4 BMKG via first village."""
+    villages = await get_villages(district_id)
+    if not villages:
+        return None
+    return bmkg.format_adm4_for_bmkg(villages[0]["id"])
 
 
 def normalize_name(name: str) -> str:

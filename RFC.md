@@ -86,7 +86,7 @@ flowchart TB
 | Main menu | `/start` | `bot/handlers/start.py` — `InlineKeyboardMarkup`: weather, quake, report |
 | Weather | `cmd_weather` | `bot/handlers/weather.py` — GPS (Nominatim) or text search → wilayah drill-down / kecamatan shortcut → BMKG `adm4` |
 | Earthquake | `cmd_quake` | `bot/handlers/quake.py` — `autogempa.json` / recent list |
-| Report | `cmd_report` | `bot/handlers/report.py` — states: type → description → location → Supabase insert |
+| Report | `cmd_report` | `bot/handlers/report.py` — states: type → description → location → Supabase insert; auto-captures Telegram contact for NEED_HELP/OFFER_HELP |
 
 Callbacks use `query.edit_message_text` and `await query.answer()` first to avoid stuck loading spinners.
 
@@ -124,7 +124,7 @@ Defined in `database/schema.sql`:
 | Table | Purpose |
 |-------|---------|
 | `users` | `telegram_id`, optional `kode_adm4`, `is_subscribed` |
-| `mutual_aid_reports` | `report_type` enum, `description`, lat/lon, `status` enum |
+| `mutual_aid_reports` | `report_type` enum, `description`, lat/lon, `contact_name`, `telegram_username`, `status` enum |
 | `api_cache_logs` | JSONB cache for rate-limit mitigation |
 
 Enums: `report_type` (`NEED_HELP`, `OFFER_HELP`, `INFO_ONLY`); `report_status` (`OPEN`, `IN_PROGRESS`, `RESOLVED`).
@@ -271,11 +271,16 @@ disaster-response-mvp/
 
 ### Weather adm4 conversion (W-08)
 
-`bot/handlers/weather.py` — `_format_adm4_for_bmkg(village_id)`:
+`bot/services/bmkg.py` — `format_adm4_for_bmkg(village_id)`:
 
 - Input: emsifa village ID (e.g. `3674060001`)
 - Output: BMKG Kemendagri adm4 (e.g. `36.74.06.1001`)
 - Rule: village suffix offset +1000 (BMKG uses 1001-based desa codes)
+
+`bot/services/wilayah.py` — `resolve_adm4_for_bmkg(district_id)`:
+
+- Fetches villages for district, picks first, converts via `bmkg.format_adm4_for_bmkg()`
+- Returns `None` if no villages found
 
 ## Verification & TDD (for implementers and AI)
 
@@ -291,7 +296,7 @@ No new behavior without a failing test scenario from [PRD.md](PRD.md) first.
 
 | Layer | What to test | How |
 |-------|--------------|-----|
-| Pure functions | `format_weather_summary`, `format_quake_summary`, `find_best_match`, `_format_adm4_for_bmkg`, `filter_reports`, `build_map` marker colors | `pytest`; no mocks |
+| Pure functions | `format_weather_summary`, `format_quake_summary`, `find_best_match`, `format_adm4_for_bmkg`, `filter_reports`, `build_map` marker colors | `pytest`; no mocks |
 | HTTP services | `bmkg`, `petabencana`, `wilayah` fetchers | `httpx` mock transport or `pytest-httpx`; never hit real BMKG in CI |
 | Handlers | `report`, `quake`, `start`, `weather` | `pytest-asyncio` + minimal Telegram `Update` fixtures; mock `supabase_client` at DB boundary only |
 | Dashboard loaders | `data_loader.py` | Mock `httpx.Client` and `supabase_client`; do not run Streamlit in unit tests |
@@ -301,8 +306,8 @@ No new behavior without a failing test scenario from [PRD.md](PRD.md) first.
 1. `validate_config` — C-01
 2. `utils/retry` + `wilayah.find_best_match` — RT-01, RT-02, L-01–L-04
 3. BMKG formatters + fetch with mocks — W-05–W-07, Q-02–Q-04
-4. `_format_adm4_for_bmkg` — W-08
-5. Report handler flow (mock Supabase) — R-01–R-07
+4. `format_adm4_for_bmkg` — W-08
+5. Report handler flow (mock Supabase) — R-01–R-09
 6. `filter_reports` + `build_map` — F-01, M-02–M-06
 7. `build_app()` smoke — C-02
 
@@ -312,13 +317,13 @@ No new behavior without a failing test scenario from [PRD.md](PRD.md) first.
 |-----------|--------------|
 | `tests/test_config.py` | C-01 |
 | `tests/test_retry.py` | RT-01, RT-02 |
-| `tests/test_wilayah.py` | L-01–L-04 |
+| `tests/test_wilayah.py` | L-01–L-06 |
 | `tests/test_bmkg.py` | W-05–W-07, Q-02–Q-04 |
 | `tests/test_weather_adm4.py` | W-08 |
-| `tests/test_handlers_report.py` | R-01–R-07 |
+| `tests/test_handlers_report.py` | R-01–R-09 |
 | `tests/test_handlers_quake.py` | Q-01, Q-03 |
 | `tests/test_start.py` | W-01, C-02 |
-| `tests/test_map_view.py` | M-02–M-06 |
+| `tests/test_map_view.py` | M-02–M-06, F-04 |
 | `tests/test_report_filter.py` | F-01 |
 | `tests/test_build_app.py` | C-02 |
 
@@ -335,7 +340,7 @@ pytest tests/ -v
 
 | Guardrail | Command / action | Status |
 |-----------|------------------|--------|
-| **Match the plan** | Every PRD scenario ID (W-/Q-/R-/M-/F-/G-/C-/RT-/L-) has a test in `tests/` | 34 tests |
+| **Match the plan** | Every PRD scenario ID (W-/Q-/R-/M-/F-/G-/C-/RT-/L-) has a test in `tests/` | 36 tests |
 | **TDD** | Unit + integration tests prove stories; handlers mocked at DB/API boundary | `pytest tests/ -v` |
 | **Lint** | No new linter errors in `tests/` and changed modules | run IDE linter before submit |
 | **Run the app** | Smoke checks with real `.env` | see below |

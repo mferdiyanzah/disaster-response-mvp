@@ -85,7 +85,10 @@ def build_app():
     )
     app.add_handler(report_conv)
 
-    # GPS untuk flow cuaca (cek state di handler)
+    # NOTE: Weather flow uses ad-hoc context.user_data["state"] = AWAITING_WEATHER_INPUT
+    # (not ConversationHandler). The text/location MessageHandlers below must be
+    # registered AFTER report ConversationHandler to avoid conflicts.
+    # These handlers early-return if state != AWAITING_WEATHER_INPUT.
     app.add_handler(MessageHandler(filters.LOCATION, handle_weather_location))
 
     # Fallback text handler untuk weather flow (taruh terakhir)

@@ -81,6 +81,8 @@ As a **resident**, I want to report a disaster, request help, or offer help with
 - [ ] If I send text instead of location at the location step, I am prompted again (R-06)
 - [ ] If saving fails, I see an error message and can try again later (R-05)
 - [ ] I can cancel mid-flow with `/cancel` (R-07)
+- [ ] For need-help and offer-help reports, my Telegram display name and username are saved automatically (R-08)
+- [ ] Info-only reports do not store my contact details (R-09)
 
 **Test scenarios**
 
@@ -93,6 +95,8 @@ As a **resident**, I want to report a disaster, request help, or offer help with
 | R-05 | Database insert fails | Location received | Error message; location keyboard removed |
 | R-06 | User in location step | User sends text not location | Flow stays on location step; reprompt for location |
 | R-07 | User mid report flow | User sends `/cancel` | State cleared; cancel message shown |
+| R-08 | NEED_HELP or OFFER_HELP report | User shares location | Report saved with `contact_name` and `telegram_username` snapshot |
+| R-09 | INFO_ONLY report | User shares location | Report saved with null contact fields |
 
 ### Story 4: Multi-layer hazard map
 
@@ -128,6 +132,7 @@ As a **volunteer or NGO operator**, I want to filter mutual-aid reports by statu
 - [ ] I can filter by report type (need help, offer help, info only) (F-01)
 - [ ] Changing a filter updates the map and list without a manual full-page reload (F-02)
 - [ ] My filter choice stays applied while I interact with the dashboard in one session (F-03)
+- [ ] I can see reporter contact (name and Telegram link when available) in the report table and map popup (F-04)
 
 **Test scenarios**
 
@@ -136,6 +141,7 @@ As a **volunteer or NGO operator**, I want to filter mutual-aid reports by statu
 | F-01 | Reports with mixed statuses and types | Filter applied (e.g. OPEN only) | Map and table show only matching reports |
 | F-02 | Dashboard open | User toggles filter | Map and table update on next interaction |
 | F-03 | Active session | User interacts multiple times | Filter keys persist in session state |
+| F-04 | NEED_HELP report with contact fields | Dashboard loads | Table and map popup show contact name; link if username exists |
 
 ### Story 6: Graceful degradation
 
@@ -194,6 +200,8 @@ As a **system operator**, I want the same bot features to run locally during the
 | L-02 | Substring match only | Best match runs | Returns first substring match |
 | L-03 | No match in list | Best match runs | Returns nothing |
 | L-04 | Mixed-case input | Best match runs | Case-insensitive match works |
+| L-05 | District has villages | resolve_adm4_for_bmkg runs | Returns BMKG adm4 from first village |
+| L-06 | District has no villages | resolve_adm4_for_bmkg runs | Returns nothing |
 
 ## Scenario index (acceptance criteria → IDs)
 
@@ -201,9 +209,9 @@ As a **system operator**, I want the same bot features to run locally during the
 |-------|-----------------|
 | Story 1 | W-01–W-11 |
 | Story 2 | Q-01–Q-04 |
-| Story 3 | R-01–R-07 |
+| Story 3 | R-01–R-09 |
 | Story 4 | M-01–M-06 |
-| Story 5 | F-01–F-03 |
+| Story 5 | F-01–F-04 |
 | Story 6 | G-01–G-03 |
 | Story 7 | C-01–C-04 |
 

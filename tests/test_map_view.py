@@ -62,6 +62,42 @@ def test_build_map_need_help_vs_offer_help_colors():
     assert "green" in html
 
 
+def test_build_map_popup_includes_contact_when_present():
+    reports = [
+        {
+            "report_type": "NEED_HELP",
+            "latitude": -6.1,
+            "longitude": 106.1,
+            "description": "help",
+            "status": "OPEN",
+            "contact_name": "Budi Santoso",
+            "telegram_username": "budi_santoso",
+        },
+    ]
+    m = build_map([], None, reports)
+    html = m.get_root().render()
+    assert "Budi Santoso" in html
+    assert "t.me/budi_santoso" in html
+
+
+def test_build_map_popup_skips_contact_for_info_only():
+    reports = [
+        {
+            "report_type": "INFO_ONLY",
+            "latitude": -6.1,
+            "longitude": 106.1,
+            "description": "info",
+            "status": "OPEN",
+            "contact_name": "Should Not Show",
+            "telegram_username": "hidden",
+        },
+    ]
+    m = build_map([], None, reports)
+    html = m.get_root().render()
+    assert "Should Not Show" not in html
+    assert "t.me/hidden" not in html
+
+
 def test_build_map_skips_reports_without_coordinates():
     m = build_map(
         [],

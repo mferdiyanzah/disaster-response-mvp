@@ -9,6 +9,8 @@ def mock_user():
     user = MagicMock()
     user.id = 12345
     user.first_name = "Warga"
+    user.full_name = "Budi Santoso"
+    user.username = "budi_santoso"
     return user
 
 

@@ -24,33 +24,19 @@ AWAITING_WEATHER_INPUT = "awaiting_weather_input"
 _BACK_MENU_BTN = InlineKeyboardButton("⬅️ Kembali ke Menu", callback_data="cmd_back")
 
 
-def _format_adm4_for_bmkg(village_id: str) -> str:
-    """Convert emsifa village ID ke format adm4 BMKG."""
-    vid = village_id.zfill(10)
-    village_suffix = int(vid[6:]) + 1000
-    return f"{vid[:2]}.{vid[2:4]}.{vid[4:6]}.{village_suffix:04d}"
-
-
-async def _resolve_adm4_from_district(district_id: str) -> str | None:
-    villages = await wilayah.get_villages(district_id)
-    if not villages:
-        return None
-    return _format_adm4_for_bmkg(villages[0]["id"])
-
-
-async def _send_weather_message(
-    update: Update,
+async def _display_weather(
+    reply_fn,
     kode_adm4: str,
     *,
     location_label: str | None = None,
 ) -> None:
-    """Fetch BMKG dan kirim summary ke user (message-based)."""
+    """Fetch BMKG dan tampilkan via reply_fn (reply_text or edit_message_text)."""
     keyboard = InlineKeyboardMarkup([[_BACK_MENU_BTN]])
     prefix = f"Lokasi: *{location_label}*\n\n" if location_label else ""
 
     weather_data = await bmkg.fetch_weather(kode_adm4)
     if weather_data is None:
-        await update.message.reply_text(
+        await reply_fn(
             f"{prefix}Data cuaca sedang tidak bisa diakses. Coba lagi beberapa saat lagi ya.",
             reply_markup=keyboard,
             parse_mode="Markdown",
@@ -58,38 +44,7 @@ async def _send_weather_message(
         return
 
     summary = bmkg.format_weather_summary(weather_data)
-    await update.message.reply_text(
-        f"{prefix}{summary}",
-        reply_markup=keyboard,
-        parse_mode="Markdown",
-    )
-
-
-async def _edit_weather_message(
-    query,
-    kode_adm4: str,
-    *,
-    location_label: str | None = None,
-) -> None:
-    """Fetch BMKG dan edit message (callback-based)."""
-    keyboard = InlineKeyboardMarkup([[_BACK_MENU_BTN]])
-    prefix = f"Lokasi: *{location_label}*\n\n" if location_label else ""
-
-    weather_data = await bmkg.fetch_weather(kode_adm4)
-    if weather_data is None:
-        await query.edit_message_text(
-            f"{prefix}Data cuaca sedang tidak bisa diakses. Coba lagi beberapa saat lagi ya.",
-            reply_markup=keyboard,
-            parse_mode="Markdown",
-        )
-        return
-
-    summary = bmkg.format_weather_summary(weather_data)
-    await query.edit_message_text(
-        f"{prefix}{summary}",
-        reply_markup=keyboard,
-        parse_mode="Markdown",
-    )
+    await reply_fn(f"{prefix}{summary}", reply_markup=keyboard, parse_mode="Markdown")
 
 
 async def _fetch_weather_for_district_id(
@@ -103,7 +58,7 @@ async def _fetch_weather_for_district_id(
     keyboard = InlineKeyboardMarkup([[_BACK_MENU_BTN]])
 
     try:
-        kode_adm4 = await _resolve_adm4_from_district(district_id)
+        kode_adm4 = await wilayah.resolve_adm4_for_bmkg(district_id)
     except Exception:
         logger.exception("Gagal fetch villages untuk district %s", district_id)
         text = "Gagal memuat data wilayah. Coba lagi nanti."
@@ -122,12 +77,16 @@ async def _fetch_weather_for_district_id(
         return
 
     if via_callback:
-        await _edit_weather_message(
-            update.callback_query, kode_adm4, location_label=district_name
+        await _display_weather(
+            update.callback_query.edit_message_text,
+            kode_adm4,
+            location_label=district_name,
         )
     else:
-        await _send_weather_message(
-            update, kode_adm4, location_label=district_name
+        await _display_weather(
+            update.message.reply_text,
+            kode_adm4,
+            location_label=district_name,
         )
 
 

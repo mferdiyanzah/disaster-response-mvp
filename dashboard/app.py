@@ -75,7 +75,15 @@ if filtered_reports:
     df = pd.DataFrame(filtered_reports)
     display_cols = [
         c
-        for c in ["created_at", "report_type", "status", "description", "reporter_id"]
+        for c in [
+            "created_at",
+            "report_type",
+            "status",
+            "description",
+            "contact_name",
+            "telegram_username",
+            "reporter_id",
+        ]
         if c in df.columns
     ]
     st.dataframe(df[display_cols], use_container_width=True)

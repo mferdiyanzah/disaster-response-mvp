@@ -44,22 +44,27 @@ def insert_mutual_aid_report(
     description: str,
     latitude: float,
     longitude: float,
+    contact_name: str | None = None,
+    telegram_username: str | None = None,
 ) -> dict | None:
     """Simpan laporan gotong royong (butuh bantuan / tawarkan bantuan)."""
     try:
         client = get_client()
+        payload = {
+            "reporter_id": reporter_id,
+            "report_type": report_type,
+            "description": description,
+            "latitude": latitude,
+            "longitude": longitude,
+            "status": "OPEN",
+        }
+        if contact_name is not None:
+            payload["contact_name"] = contact_name
+        if telegram_username is not None:
+            payload["telegram_username"] = telegram_username
         result = (
             client.table("mutual_aid_reports")
-            .insert(
-                {
-                    "reporter_id": reporter_id,
-                    "report_type": report_type,
-                    "description": description,
-                    "latitude": latitude,
-                    "longitude": longitude,
-                    "status": "OPEN",
-                }
-            )
+            .insert(payload)
             .execute()
         )
         return result.data[0] if result.data else None

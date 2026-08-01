@@ -37,6 +37,8 @@ create table mutual_aid_reports (
     description text not null,
     latitude double precision not null,
     longitude double precision not null,
+    contact_name varchar,              -- snapshot nama Telegram (NEED_HELP/OFFER_HELP)
+    telegram_username varchar,           -- @username tanpa @; null kalau user tidak punya
     status report_status not null default 'OPEN',
     created_at timestamptz not null default now()
 );

@@ -81,9 +81,38 @@ async def test_receive_location_saves_report(mock_user):
         description="Butuh perahu",
         latitude=-6.2,
         longitude=106.8,
+        contact_name="Budi Santoso",
+        telegram_username="budi_santoso",
     )
     success_text = message.reply_text.await_args[0][0]
-    assert "berhasil" in success_text.lower()
+    assert "tersimpan" in success_text.lower()
+
+
+@pytest.mark.asyncio
+async def test_receive_location_info_only_no_contact(mock_user):
+    loc = MagicMock()
+    loc.latitude = -6.2
+    loc.longitude = 106.8
+    update, message = make_message_update(location=loc, user=mock_user)
+    ctx = MagicMock()
+    ctx.user_data = {"report_type": "INFO_ONLY", "description": "Jalan banjir"}
+
+    with patch("bot.handlers.report.supabase_client.upsert_user", return_value={}):
+        with patch(
+            "bot.handlers.report.supabase_client.insert_mutual_aid_report",
+            return_value={"id": "uuid"},
+        ) as insert:
+            await receive_location(update, ctx)
+
+    insert.assert_called_once_with(
+        reporter_id=mock_user.id,
+        report_type="INFO_ONLY",
+        description="Jalan banjir",
+        latitude=-6.2,
+        longitude=106.8,
+        contact_name=None,
+        telegram_username=None,
+    )
 
 
 @pytest.mark.asyncio

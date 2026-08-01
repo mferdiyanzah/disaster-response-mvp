@@ -47,6 +47,57 @@ REPORT_TYPE_LABELS = {
     "INFO_ONLY": "ℹ️ Info Saja",
 }
 
+DESCRIPTION_PROMPTS = {
+    "NEED_HELP": (
+        "Sekarang, jelaskan kebutuhan kamu secara singkat "
+        "(contoh: 'Air mulai masuk rumah, ada balita, butuh perahu karet'):"
+    ),
+    "OFFER_HELP": (
+        "Sekarang, jelaskan bantuan yang kamu tawarkan "
+        "(contoh: 'Saya punya perahu karet 2 unit, bisa bantu evakuasi'):"
+    ),
+    "INFO_ONLY": (
+        "Sekarang, jelaskan situasi yang kamu lihat secara singkat "
+        "(contoh: 'Jalan Raya X tergenang 50cm, kendaraan masih bisa lewat'):"
+    ),
+}
+
+LOCATION_PROMPTS = {
+    "NEED_HELP": "Bagikan lokasi kamu supaya relawan bisa menemukan kamu:",
+    "OFFER_HELP": "Bagikan lokasi kamu sekarang supaya yang butuh bantuan tahu posisimu:",
+    "INFO_ONLY": "Bagikan lokasi kejadian supaya bisa ditandai di peta:",
+}
+
+SUCCESS_MESSAGES = {
+    "NEED_HELP": (
+        "✅ Permintaan bantuan kamu sudah tersimpan dan akan muncul di "
+        "dashboard tim relawan. Semoga segera ada yang bisa membantu!"
+    ),
+    "OFFER_HELP": (
+        "✅ Tawaran bantuan kamu sudah tersimpan dan akan muncul di dashboard. "
+        "Terima kasih atas kepedulianmu!"
+    ),
+    "INFO_ONLY": (
+        "✅ Info kamu sudah tersimpan dan akan muncul di dashboard tim relawan. "
+        "Terima kasih sudah berbagi informasi!"
+    ),
+}
+
+ERROR_MESSAGES = {
+    "NEED_HELP": (
+        "Waduh, permintaan bantuan kamu gagal tersimpan karena gangguan sistem. "
+        "Coba kirim ulang beberapa saat lagi ya."
+    ),
+    "OFFER_HELP": (
+        "Waduh, tawaran bantuan kamu gagal tersimpan karena gangguan sistem. "
+        "Coba kirim ulang beberapa saat lagi ya."
+    ),
+    "INFO_ONLY": (
+        "Waduh, info kamu gagal tersimpan karena gangguan sistem. "
+        "Coba kirim ulang beberapa saat lagi ya."
+    ),
+}
+
 
 async def report_entry(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Entry point: user tap tombol 'Laporkan Bencana / Minta Bantuan'."""
@@ -70,25 +121,23 @@ async def choose_type_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     report_type = query.data.replace("report_type_", "")
     context.user_data["report_type"] = report_type
 
+    prompt = DESCRIPTION_PROMPTS.get(report_type, DESCRIPTION_PROMPTS["INFO_ONLY"])
     await query.edit_message_text(
-        f"Kamu pilih: {REPORT_TYPE_LABELS.get(report_type, report_type)}\n\n"
-        "Sekarang, jelaskan situasinya secara singkat "
-        "(contoh: 'Air mulai masuk rumah, ada balita, butuh perahu karet'):"
+        f"Kamu pilih: {REPORT_TYPE_LABELS.get(report_type, report_type)}\n\n{prompt}"
     )
     return TYPING_DESCRIPTION
 
 
 async def receive_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["description"] = update.message.text
+    report_type = context.user_data.get("report_type", "INFO_ONLY")
 
     location_button = KeyboardButton("📍 Bagikan Lokasi Saya", request_location=True)
     keyboard = ReplyKeyboardMarkup(
         [[location_button]], one_time_keyboard=True, resize_keyboard=True
     )
-    await update.message.reply_text(
-        "Terima kasih. Sekarang bagikan lokasi kamu ya (tap tombol di bawah):",
-        reply_markup=keyboard,
-    )
+    prompt = LOCATION_PROMPTS.get(report_type, LOCATION_PROMPTS["INFO_ONLY"])
+    await update.message.reply_text(prompt, reply_markup=keyboard)
     return SHARING_LOCATION
 
 
@@ -105,6 +154,12 @@ async def receive_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     report_type = context.user_data.get("report_type", "INFO_ONLY")
     description = context.user_data.get("description", "")
 
+    contact_name = None
+    telegram_username = None
+    if report_type in ("NEED_HELP", "OFFER_HELP"):
+        contact_name = user.full_name or user.first_name
+        telegram_username = user.username
+
     # Pastikan user sudah terdaftar (harusnya sudah dari /start, tapi jaga-jaga)
     supabase_client.upsert_user(telegram_id=user.id)
 
@@ -114,20 +169,16 @@ async def receive_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         description=description,
         latitude=location.latitude,
         longitude=location.longitude,
+        contact_name=contact_name,
+        telegram_username=telegram_username,
     )
 
     if saved is None:
-        await update.message.reply_text(
-            "Waduh, laporan kamu gagal tersimpan karena gangguan sistem. "
-            "Coba kirim ulang beberapa saat lagi ya.",
-            reply_markup=ReplyKeyboardRemove(),
-        )
+        error_msg = ERROR_MESSAGES.get(report_type, ERROR_MESSAGES["INFO_ONLY"])
+        await update.message.reply_text(error_msg, reply_markup=ReplyKeyboardRemove())
     else:
-        await update.message.reply_text(
-            "✅ Laporan kamu berhasil tersimpan dan akan muncul di dashboard "
-            "tim relawan. Terima kasih sudah berpartisipasi!",
-            reply_markup=ReplyKeyboardRemove(),
-        )
+        success_msg = SUCCESS_MESSAGES.get(report_type, SUCCESS_MESSAGES["INFO_ONLY"])
+        await update.message.reply_text(success_msg, reply_markup=ReplyKeyboardRemove())
 
     context.user_data.clear()
     return ConversationHandler.END

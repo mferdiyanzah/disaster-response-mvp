@@ -6,6 +6,25 @@ bagian 6.2.
 import folium
 
 
+def _format_contact_html(report: dict) -> str:
+    """Format baris kontak untuk popup peta."""
+    report_type = report.get("report_type", "INFO_ONLY")
+    if report_type == "INFO_ONLY":
+        return ""
+
+    contact_name = report.get("contact_name")
+    username = report.get("telegram_username")
+    if not contact_name and not username:
+        return ""
+
+    if username:
+        return (
+            f"Kontak: {contact_name or '-'} "
+            f"(<a href=\"https://t.me/{username}\" target=\"_blank\">@{username}</a>)<br>"
+        )
+    return f"Kontak: {contact_name}<br>"
+
+
 def build_map(
     quakes: list[dict],
     petabencana_geojson: dict | None,
@@ -72,7 +91,8 @@ def build_map(
             popup=folium.Popup(
                 f"<b>{report_type}</b><br>"
                 f"{r.get('description', '-')}<br>"
-                f"Status: {r.get('status', '-')}",
+                f"Status: {r.get('status', '-')}<br>"
+                f"{_format_contact_html(r)}",
                 max_width=250,
             ),
         ).add_to(aid_layer)

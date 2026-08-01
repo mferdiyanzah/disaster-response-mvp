@@ -69,6 +69,18 @@ async def fetch_recent_quakes() -> list[dict] | None:
         return None
 
 
+def format_adm4_for_bmkg(village_id: str) -> str:
+    """Convert emsifa village ID ke format adm4 BMKG.
+
+    Input: emsifa village ID (e.g. '3674060001')
+    Output: BMKG Kemendagri adm4 (e.g. '36.74.06.1001')
+    Rule: village suffix offset +1000 (BMKG uses 1001-based desa codes)
+    """
+    vid = village_id.zfill(10)
+    village_suffix = int(vid[6:]) + 1000
+    return f"{vid[:2]}.{vid[2:4]}.{vid[4:6]}.{village_suffix:04d}"
+
+
 def format_weather_summary(weather_data: dict) -> str:
     """
     Ubah response JSON BMKG jadi teks ringkas buat dikirim ke chat Telegram.
