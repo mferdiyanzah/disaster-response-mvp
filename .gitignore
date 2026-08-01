@@ -1,0 +1,26 @@
+# Env
+.env
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# AI Agents
+.agents/
+.claude/
+.cursor/
+.cursorrules
