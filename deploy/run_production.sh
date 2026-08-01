@@ -4,9 +4,11 @@ set -e
 cd "$(dirname "$0")/.."
 PROJECT_ROOT=$(pwd)
 
-# Load env
+# Load env using set -a (handles special chars properly)
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+    set -a
+    source .env
+    set +a
 fi
 
 PORT=${PORT:-8000}
