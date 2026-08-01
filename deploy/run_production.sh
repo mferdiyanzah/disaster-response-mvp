@@ -4,11 +4,17 @@ set -e
 cd "$(dirname "$0")/.."
 PROJECT_ROOT=$(pwd)
 
-# Load env using set -a (handles special chars properly)
+# Load env (parse manually to handle special chars)
 if [ -f .env ]; then
-    set -a
-    source .env
-    set +a
+    while IFS='=' read -r key value; do
+        # Skip comments and empty lines
+        [[ "$key" =~ ^#.*$ ]] && continue
+        [[ -z "$key" ]] && continue
+        # Remove leading/trailing whitespace from key
+        key=$(echo "$key" | xargs)
+        # Export if key is valid
+        [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && export "$key=$value"
+    done < .env
 fi
 
 PORT=${PORT:-8000}
