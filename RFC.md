@@ -10,10 +10,10 @@ Every standard phase has a named artifact and a **done when** gate. Judges and A
 |-------|------------|-------------------|-----------|
 | **1. Planning** | Problem, scope, feasibility, constraints | [PRD.md](PRD.md) (Problem, Constraints, Non-goals), [README.md](README.md) | One-sentence problem; MVP vs post-MVP scope explicit |
 | **2. Requirements** | User stories, acceptance criteria, edge cases | [PRD.md](PRD.md) (stories, scenario IDs) | Each story has criteria + Given/When/Then table |
-| **3. Design** | Architecture, stack, schema, API contracts, trade-offs | This RFC, [PROJECT_SPEC.md](PROJECT_SPEC.md), [database/schema.sql](database/schema.sql) | Diagram + locked versions; schema applied in Supabase |
+| **3. Design** | Architecture, stack, schema, API contracts, trade-offs | This RFC, [database/schema.sql](database/schema.sql) | Diagram + locked versions; schema applied in Supabase |
 | **4. Implementation** | Bot, dashboard, services; phased build | `bot/`, `dashboard/`, `utils/`, [AGENTS.md](AGENTS.md) phases 1–4 | AGENTS phase smoke commands pass |
 | **5. Testing** | TDD, unit/integration, acceptance traceability | PRD scenarios, § Verification & TDD below, `tests/` | Scenario IDs covered; `pytest` green or live demo matches PRD |
-| **6. Deployment** | Env, secrets, webhook, cloud hosts | `.env.example`, `bot/main.py` webhook block, § DevOps below | Hosted URLs work; no secrets in git; webhook or polling demo ready |
+| **6. Deployment** | Env, secrets, webhook, cloud hosts | `.env.example`, `bot/main_production.py`, `deploy/`, § DevOps below | Hosted URLs work; no secrets in git; webhook or polling demo ready |
 | **7. Operations** | Degradation, rate limits, logging, incident UX | `utils/retry.py`, service `try/except`, PRD Story 6 (G-*) | Partial API outage → user message, not crash |
 | **8. Maintenance** | Roadmap, tech debt, evolution | PRD post-hackathon roadmap, § Trade-offs below | Deferred work (WhatsApp, LLM) documented, not half-built |
 
@@ -27,7 +27,7 @@ Every standard phase has a named artifact and a **done when** gate. Judges and A
 | 3 | `database/schema.sql` run in Supabase SQL Editor |
 | 4 | `python -c "from bot.main import build_app; build_app(); print('bot app OK')"` |
 | 5 | `pytest tests/ -v` (when present) + manual demo per PRD |
-| 6 | Bot on Render (webhook) or local polling; dashboard on Streamlit Community Cloud |
+| 6 | Bot webhook via `main_production` or VPS `deploy/`; dashboard on Streamlit (local systemd or Cloud) |
 | 7 | Kill BMKG network → bot still answers with fallback (G-01, G-02) |
 | 8 | Non-goals in PRD match RFC trade-off decisions |
 
@@ -36,8 +36,8 @@ Every standard phase has a named artifact and a **done when** gate. Judges and A
 1. Supabase project created; `database/schema.sql` applied.
 2. `.env` from `.env.example` — never committed.
 3. **Dev:** `python -m bot.main` (polling; no `WEBHOOK_URL` required).
-4. **Prod bot:** Render Web Service; set `WEBHOOK_URL`, `PORT`; switch to `app.run_webhook()` per `bot/main.py` TODO.
-5. **Dashboard:** `streamlit run dashboard/app.py` locally; deploy repo branch to Streamlit Community Cloud with secrets mirroring `.env`.
+4. **Prod bot:** `python -m bot.main_production` (FastAPI webhook) or `./deploy/run_production.sh` on VPS; set `WEBHOOK_URL`, `PORT`, `STREAMLIT_PORT` in `.env`.
+5. **Dashboard:** `streamlit run dashboard/app.py` locally; on VPS via `deploy/disaster-dashboard.service` or Streamlit Community Cloud.
 6. Submission bundle for judges: GitHub URL, deployed bot/dashboard URLs, PRD.md, RFC.md, screenshots (`llms.txt` not required).
 
 ## Solution design
@@ -123,9 +123,9 @@ Defined in `database/schema.sql`:
 
 | Table | Purpose |
 |-------|---------|
-| `users` | `telegram_id`, optional `kode_adm4`, `is_subscribed` |
+| `users` | `telegram_id`, optional `kode_adm4`, `is_subscribed` (reserved — no push cron in MVP) |
 | `mutual_aid_reports` | `report_type` enum, `description`, lat/lon, `contact_name`, `telegram_username`, `status` enum |
-| `api_cache_logs` | JSONB cache for rate-limit mitigation |
+| `api_cache_logs` | JSONB cache table — **schema only**; MVP uses Streamlit `@st.cache_data` instead |
 
 Enums: `report_type` (`NEED_HELP`, `OFFER_HELP`, `INFO_ONLY`); `report_status` (`OPEN`, `IN_PROGRESS`, `RESOLVED`).
 
@@ -133,8 +133,11 @@ Enums: `report_type` (`NEED_HELP`, `OFFER_HELP`, `INFO_ONLY`); `report_status` (
 
 | Mode | When | Mechanism |
 |------|------|-----------|
-| Long polling | Hackathon dev, local demo | `app.run_polling()` in `bot/main.py` |
-| Webhook | Production on Render | `app.run_webhook()` + `WEBHOOK_URL` env (see TODO block in `bot/main.py`) |
+| Long polling | Hackathon dev, local demo | `python -m bot.main` → `app.run_polling()` |
+| Webhook (production) | VPS + Cloudflare tunnel or public HTTPS | `python -m bot.main_production` — FastAPI `/webhook`, uvicorn on `PORT` |
+| VPS bundle | Ubuntu production | [`deploy/run_production.sh`](deploy/run_production.sh), systemd units in [`deploy/`](deploy/) |
+
+Alternative (not primary for this repo): Render.com webhook via `bot/main.py` TODO block.
 
 Only one polling instance per bot token may run at a time; multiple `getUpdates` clients cause Telegram `Conflict` errors.
 
@@ -169,14 +172,15 @@ No custom design system. Streamlit default components + Folium map styling. Tele
 
 | Component | Target platform | Notes |
 |-----------|-----------------|-------|
-| Bot (webhook) | Render.com Web Service | Free tier ~750 h/month; webhook avoids idle kill vs always-on polling |
-| Dashboard | Streamlit Community Cloud | Deploy from GitHub; secrets in Streamlit secrets UI |
+| Bot (webhook) | VPS + Cloudflare (`deploy/`) | `main_production.py`, `WEBHOOK_URL` without trailing slash |
+| Bot (dev) | Local | `python -m bot.main` polling |
+| Dashboard | VPS systemd or Streamlit Community Cloud | `STREAMLIT_PORT` default 8501 |
 | Database | Supabase | Apply `database/schema.sql` in SQL Editor |
 
 Environment variables (see `.env.example`):
 
 - Required: `TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_KEY`
-- Production: `WEBHOOK_URL`, `PORT`
+- Production: `WEBHOOK_URL`, `PORT`, `STREAMLIT_PORT`
 - Optional overrides: BMKG / PetaBencana / wilayah base URLs, `PETABENCANA_USER_AGENT`
 
 ## Constraints
@@ -252,9 +256,9 @@ Weather flow (updated):
 ```
 disaster-response-mvp/
 ├── PRD.md / RFC.md              # Product + engineering docs (what judges score)
-├── PROJECT_SPEC.md              # Implementation source of truth for code
 ├── bot/
-│   ├── main.py                  # build_app(), polling entrypoint
+│   ├── main.py                  # dev polling entrypoint
+│   ├── main_production.py       # prod FastAPI webhook
 │   ├── config.py                # env + validate_config()
 │   ├── handlers/                # start, weather, quake, report
 │   └── services/                # bmkg, petabencana, wilayah, nominatim, supabase_client
@@ -264,8 +268,9 @@ disaster-response-mvp/
 │   └── services/
 │       ├── data_loader.py
 │       └── report_filter.py     # filter_reports() — pure, testable
+├── deploy/                      # VPS: systemd units, setup_ubuntu.sh, run_production.sh
 ├── database/schema.sql
-├── tests/                       # pytest (when implemented)
+├── tests/                       # pytest — see PRD scenario IDs
 └── utils/retry.py               # exponential backoff + jitter
 ```
 
@@ -307,9 +312,10 @@ No new behavior without a failing test scenario from [PRD.md](PRD.md) first.
 2. `utils/retry` + `wilayah.find_best_match` — RT-01, RT-02, L-01–L-04
 3. BMKG formatters + fetch with mocks — W-05–W-07, Q-02–Q-04
 4. `format_adm4_for_bmkg` — W-08
-5. Report handler flow (mock Supabase) — R-01–R-09
-6. `filter_reports` + `build_map` — F-01, M-02–M-06
-7. `build_app()` smoke — C-02
+5. Weather handlers + Nominatim mocks — W-01, W-09–W-11
+6. Report handler flow (mock Supabase) — R-01–R-09
+7. `filter_reports` + `build_map` — F-01, M-02–M-06
+8. `build_app()` smoke — C-02
 
 ### PRD scenario → test file mapping
 
@@ -322,10 +328,11 @@ No new behavior without a failing test scenario from [PRD.md](PRD.md) first.
 | `tests/test_weather_adm4.py` | W-08 |
 | `tests/test_handlers_report.py` | R-01–R-09 |
 | `tests/test_handlers_quake.py` | Q-01, Q-03 |
-| `tests/test_start.py` | W-01, C-02 |
+| `tests/test_handlers_weather.py` | W-01, W-10, W-11 |
+| `tests/test_nominatim.py` | W-09 (reverse geocode boundaries) |
+| `tests/test_start.py` | C-02 (build_app) |
 | `tests/test_map_view.py` | M-02–M-06, F-04 |
 | `tests/test_report_filter.py` | F-01 |
-| `tests/test_build_app.py` | C-02 |
 
 ### Dev dependencies
 
@@ -340,7 +347,7 @@ pytest tests/ -v
 
 | Guardrail | Command / action | Status |
 |-----------|------------------|--------|
-| **Match the plan** | Every PRD scenario ID (W-/Q-/R-/M-/F-/G-/C-/RT-/L-) has a test in `tests/` | 36 tests |
+| **Match the plan** | Every PRD scenario ID (W-/Q-/R-/M-/F-/G-/C-/RT-/L-) has a test in `tests/` | 45 tests |
 | **TDD** | Unit + integration tests prove stories; handlers mocked at DB/API boundary | `pytest tests/ -v` |
 | **Lint** | No new linter errors in `tests/` and changed modules | run IDE linter before submit |
 | **Run the app** | Smoke checks with real `.env` | see below |

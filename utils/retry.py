@@ -1,7 +1,7 @@
 """
 Exponential backoff + jitter, buat retry request ke API eksternal
 (BMKG, PetaBencana, Supabase) yang kena rate-limit (HTTP 429) atau
-error transient lainnya. Lihat PROJECT_SPEC.md bagian 7.
+error transient lainnya. Lihat RFC.md § Retry utility.
 """
 import asyncio
 import logging

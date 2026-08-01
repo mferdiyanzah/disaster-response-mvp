@@ -6,7 +6,7 @@ Jalankan:
 
 Untuk production (webhook di Render.com), lihat komentar di bagian bawah
 file ini — perlu diintegrasikan dengan FastAPI/uvicorn server. Selama
-hackathon jam ke-1 s.d. ke-3, polling sudah cukup (lihat PROJECT_SPEC.md
+hackathon jam ke-1 s.d. ke-3, polling sudah cukup (lihat RFC.md § Runtime modes
 bagian 5.3).
 """
 import logging
@@ -123,5 +123,5 @@ if __name__ == "__main__":
 #
 # Pastikan WEBHOOK_URL di .env sudah diisi domain Render.com kamu,
 # dan pilih start command Render sebagai `python -m bot.main`.
-# Lihat PROJECT_SPEC.md bagian 5.3 buat detail kapan pindah dari
+# Lihat RFC.md § Runtime modes buat detail kapan pindah dari
 # polling ke webhook.

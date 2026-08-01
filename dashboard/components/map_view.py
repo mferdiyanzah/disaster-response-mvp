@@ -1,6 +1,6 @@
 """
 Render peta Folium multi-layer: zona gempa (merah), titik bencana PetaBencana
-(biru), dan laporan gotong royong warga (hijau/oranye). Lihat PROJECT_SPEC.md
+(biru), dan laporan gotong royong warga (hijau/oranye). Lihat RFC.md § Dashboard.
 bagian 6.2.
 """
 import folium

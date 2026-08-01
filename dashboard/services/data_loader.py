@@ -1,7 +1,7 @@
 """
 Fungsi fetch data buat dashboard, semua dibungkus @st.cache_data(ttl=60)
 supaya interaksi filter/widget tidak spam API eksternal berkali-kali.
-Lihat PROJECT_SPEC.md bagian 6.1.
+Lihat RFC.md § Dashboard data loaders.
 
 NOTE: dashboard jalan sinkron (Streamlit rerun model), jadi di sini pakai
 httpx.Client (sync), BEDA dengan bot/services/*.py yang async. Kalau mau

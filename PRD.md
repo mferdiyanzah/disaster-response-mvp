@@ -168,8 +168,8 @@ As a **system operator**, I want the same bot features to run locally during the
 
 **Acceptance criteria**
 
-- [ ] The bot runs locally for development without a public domain or SSL certificate (C-04)
-- [ ] A production deployment path exists for a hosted webhook URL (C-04)
+- [ ] Dev: `python -m bot.main` (polling, no `WEBHOOK_URL`) (C-04)
+- [ ] Prod: `python -m bot.main_production` or `deploy/run_production.sh` with `WEBHOOK_URL` (C-04)
 - [ ] Secrets are loaded from environment variables, not hardcoded in the repository (C-01, C-03)
 - [ ] Missing required configuration fails fast at startup with a clear error (C-01)
 - [ ] The bot application builds successfully when configuration is valid (C-02)
@@ -222,7 +222,7 @@ As a **system operator**, I want the same bot features to run locally during the
 - Native iOS or Android apps
 - Full admin RBAC, audit logs, or multi-tenant organization accounts
 - Automated push alerts or scheduled weather broadcasts to all subscribers
-- Fuzzy matching of free-text city names to official region codes (implemented for kecamatan search + Nominatim GPS)
+- Kecamatan text search via static wilayah JSON + Nominatim reverse geocode for GPS (not full province fuzzy from free text)
 - NLP or LLM urgency scoring from citizen free-text reports
 - WhatsApp Cloud API as a primary channel
 - Paid SMS, satellite comms, or offline mesh networking
@@ -241,8 +241,8 @@ As a **system operator**, I want the same bot features to run locally during the
 |------|------------|
 | **Time** | ~4–5 hours build window; demo-ready on hackathon day |
 | **People** | Solo or small team; Python-first skills assumed |
-| **Cost** | Free-tier hosting: Render (bot), Streamlit Community Cloud (dashboard), Supabase (database) |
-| **Data** | Open APIs only: BMKG, PetaBencana.id, static Indonesia administrative JSON; respect provider rate limits |
-| **Legal / privacy** | No secrets in repo; store minimal identity (Telegram ID, report text, coordinates); no payments or medical records |
+| **Cost** | Free-tier: Supabase (database); bot/dashboard on VPS + Cloudflare (`deploy/`) or optional Render + Streamlit Community Cloud |
+| **Data** | Open APIs: BMKG, PetaBencana.id, static Indonesia administrative JSON, OpenStreetMap Nominatim; respect provider rate limits |
+| **Legal / privacy** | No secrets in repo; store Telegram ID, report text, coordinates; contact name/username snapshot only for NEED_HELP/OFFER_HELP (not INFO_ONLY); no payments or medical records |
 | **Network** | Must work on degraded mobile bandwidth; chat UI preferred over heavy web client for residents |
 | **Platform** | Telegram Bot (residents) + web dashboard (volunteers); judges access dashboard via browser URL |

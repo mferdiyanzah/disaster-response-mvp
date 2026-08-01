@@ -1,19 +1,15 @@
 # Sistem Informasi Bencana & Gotong Royong (Telegram Bot + Streamlit Dashboard)
 
-MVP untuk hackathon (target 4-5 jam pengerjaan): platform peringatan dini bencana
-dan peta gotong royong, dengan Telegram Bot sebagai antarmuka warga (B2C) dan
-dashboard Streamlit sebagai command center relawan/NGO (B2B).
+MVP hackathon: peringatan dini bencana dan peta gotong royong — Telegram Bot (B2C) + dashboard Streamlit (B2B).
 
-> Baca `PROJECT_SPEC.md` untuk spesifikasi teknis lengkap (skema DB, kontrak API,
-> flow bot, dsb). File itu juga jadi referensi utama buat Cursor AI kalau kamu
-> minta bantuan lanjutin coding — sudah dirujuk di `.cursorrules`.
+**Dokumen untuk judges:** [PRD.md](PRD.md) (product) · [RFC.md](RFC.md) (engineering, API, deploy)
 
 ## Fitur Inti
 
-- **Cek Cuaca Terkini** — prakiraan cuaca BMKG per wilayah (adm4)
+- **Cek Cuaca Terkini** — GPS atau ketik wilayah; prakiraan BMKG per adm4
 - **Info Gempa Terbaru** — data gempa terkini dari BMKG
-- **Laporkan Bencana / Minta Bantuan** — crowdsource laporan warga (butuh bantuan / tawarkan bantuan), tersimpan ke Supabase
-- **Dashboard Command Center** — peta interaktif (Folium) yang overlay: zona gempa (BMKG), area terdampak (PetaBencana.id), dan laporan gotong royong warga (Supabase)
+- **Laporkan Bencana / Minta Bantuan** — laporan warga (butuh/tawarkan bantuan/info), tersimpan ke Supabase dengan kontak Telegram untuk bantuan
+- **Dashboard Command Center** — peta Folium: gempa (BMKG), PetaBencana.id, laporan bantuan warga; filter status/tipe/waktu
 
 ## Tech Stack
 
@@ -23,77 +19,61 @@ dashboard Streamlit sebagai command center relawan/NGO (B2B).
 | Dashboard | Streamlit + `streamlit-folium` |
 | Database | Supabase (PostgreSQL) |
 | Bahasa | Python 3.10+ |
-| Deployment | Render.com (bot) + Streamlit Community Cloud (dashboard) |
+| Deployment | Dev: polling lokal · Prod: VPS + Cloudflare (`deploy/`) atau Render/Streamlit Cloud |
 
 ## Setup Cepat
 
 ```powershell
-# 1. Clone / buka folder ini di Cursor
-
-# 2. Buat virtual environment
 python -m venv venv
 .\venv\Scripts\Activate.ps1
-
-# 3. Install dependencies
 pip install -r requirements.txt
-
-# 4. Copy env template dan isi credentials
 Copy-Item .env.example .env
 # isi TELEGRAM_BOT_TOKEN, SUPABASE_URL, SUPABASE_KEY
 
-# 5. Setup database
-# Buka Supabase SQL Editor, jalankan isi database/schema.sql
+# Database: jalankan database/schema.sql di Supabase SQL Editor
 
-# 6. Jalankan bot (mode polling, buat development)
 python -m bot.main
-
-# 7. Jalankan dashboard (di terminal terpisah)
 streamlit run dashboard/app.py
+```
+
+## Verifikasi
+
+```powershell
+pytest tests/ -v
+python -c "from bot import config; config.validate_config(); print('config OK')"
+python -c "from bot.main import build_app; build_app(); print('bot app OK')"
 ```
 
 ## Struktur Folder
 
 ```
 disaster-response-mvp/
-├── PROJECT_SPEC.md          # spesifikasi teknis lengkap
-├── .cursorrules             # konteks project buat Cursor AI
-├── .env.example
-├── requirements.txt
+├── PRD.md / RFC.md
 ├── bot/
-│   ├── main.py               # entrypoint bot (polling/webhook)
-│   ├── config.py              # load env vars
-│   ├── handlers/
-│   │   ├── start.py           # /start + menu utama
-│   │   ├── weather.py         # flow cek cuaca
-│   │   ├── quake.py           # flow info gempa
-│   │   └── report.py          # ConversationHandler lapor bencana
-│   └── services/
-│       ├── bmkg.py            # client API BMKG
-│       ├── wilayah.py         # lookup kode wilayah adm4
-│       ├── petabencana.py     # client API PetaBencana.id
-│       └── supabase_client.py # koneksi Supabase
+│   ├── main.py              # dev polling
+│   ├── main_production.py   # prod webhook (FastAPI)
+│   ├── handlers/            # start, weather, quake, report
+│   └── services/            # bmkg, wilayah, nominatim, petabencana, supabase
 ├── dashboard/
-│   ├── app.py                 # entrypoint Streamlit
-│   ├── components/
-│   │   ├── map_view.py        # render peta Folium multi-layer
-│   │   └── filters.py         # sidebar filter widgets
-│   └── services/
-│       └── data_loader.py     # fetch data + @st.cache_data
-├── database/
-│   └── schema.sql             # DDL Supabase (3 tabel + RLS)
-└── utils/
-    └── retry.py               # exponential backoff w/ jitter buat rate limit
+├── database/schema.sql
+├── deploy/                  # systemd + run_production.sh (VPS)
+├── tests/
+└── utils/retry.py
 ```
 
 ## Sumber Data (Open Data)
 
-- **BMKG**: `https://api.bmkg.go.id/publik/prakiraan-cuaca?adm4={kode}` (cuaca), `https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json` (gempa terakhir)
-- **Wilayah Indonesia**: `emsifa/api-wilayah-indonesia` (GitHub Pages, statis) — buat mapping nama wilayah ke kode adm4
-- **PetaBencana.id**: `https://data.petabencana.id/reports` — laporan bencana crowdsource (GeoJSON)
+- **BMKG** — cuaca (`adm4`) + gempa JSON
+- **emsifa/api-wilayah-indonesia** — kode wilayah administratif
+- **OpenStreetMap Nominatim** — reverse geocode GPS (cuaca)
+- **PetaBencana.id** — laporan bencana crowdsource (GeoJSON)
 
-Detail lengkap tiap endpoint (field JSON, rate limit, dsb) ada di `PROJECT_SPEC.md`.
+Detail endpoint, rate limit, skema DB: [RFC.md](RFC.md) dan [database/schema.sql](database/schema.sql).
 
-## Roadmap Pasca-Hackathon
+## Production (VPS)
 
-- Migrasi Telegram → WhatsApp Cloud API (jangkauan lebih luas di Indonesia, tapi ada approval template & tier limit)
-- Tambah NLP/LLM buat klasifikasi urgensi laporan warga otomatis dari teks bebas
+```bash
+./deploy/run_production.sh
+```
+
+Set `WEBHOOK_URL` di `.env` (Cloudflare tunnel / domain publik). Lihat [RFC.md](RFC.md) § Runtime modes.

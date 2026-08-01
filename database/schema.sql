@@ -14,13 +14,13 @@ create type report_status as enum ('OPEN', 'IN_PROGRESS', 'RESOLVED');
 
 -- ------------------------------------------------------------
 -- Table: users
--- Identity ledger + preferensi langganan cuaca per wilayah
+-- Identity ledger; kode_adm4 / is_subscribed reserved for post-MVP weather subscription push
 -- ------------------------------------------------------------
 create table users (
     id uuid primary key default uuid_generate_v4(),
     telegram_id bigint unique not null,
-    kode_adm4 varchar,               -- kode wilayah BMKG (nullable, diisi saat user set lokasi)
-    is_subscribed boolean not null default true,
+    kode_adm4 varchar,               -- reserved: BMKG adm4 when user sets home region (not persisted in MVP weather flow)
+    is_subscribed boolean not null default true,  -- reserved: no push cron in MVP
     created_at timestamptz not null default now()
 );
 
@@ -49,6 +49,7 @@ create index idx_reports_created_at on mutual_aid_reports(created_at desc);
 -- ------------------------------------------------------------
 -- Table: api_cache_logs
 -- Cache sementara buat hindari rate-limit API eksternal
+-- MVP: tidak dipakai — dashboard memakai Streamlit @st.cache_data; tabel untuk fase lanjut
 -- ------------------------------------------------------------
 create table api_cache_logs (
     id serial primary key,
