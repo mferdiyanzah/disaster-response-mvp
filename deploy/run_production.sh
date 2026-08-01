@@ -24,10 +24,12 @@ echo "=== Disaster Response MVP - Production ==="
 echo "Bot port: $PORT"
 echo "Dashboard port: $STREAMLIT_PORT"
 
-# Activate venv if exists
-if [ -d "venv" ]; then
-    source venv/bin/activate
+# Create and activate venv
+if [ ! -d "venv" ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv venv
 fi
+source venv/bin/activate
 
 # Install deps
 pip install -r requirements.txt --quiet
